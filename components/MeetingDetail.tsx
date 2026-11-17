@@ -5,6 +5,7 @@ export default function MeetingDetail({
 }: {
   meeting: SacramentMeeting;
 }) {
+  console.log("DATA RECEIVED BY COMPONENT:", meeting);
   return (
     <div className="bg-white p-6 rounded-lg shadow-md max-w-3xl mx-auto space-y-6">
       <div className="border-b pb-4 text-center">

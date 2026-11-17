@@ -1,136 +1,122 @@
+import { neon } from "@neondatabase/serverless";
 import type { SacramentMeeting } from "./types";
 
-export const meetings: SacramentMeeting[] = [
-  {
-    id: 1,
-    date: "2026-05-03",
-    meetingType: "regular",
-    presiding: "Bishop Smith",
-    conducting: "Brother Jones",
-    openingHymn: { number: 2, title: "The Spirit of God" },
-    openingPrayer: "Sister Williams",
-    wardBusiness: [{ description: "Sustaining of new Primary president" }],
-    stakeBusiness: false,
-    sacramentHymn: { number: 169, title: "In Remembrance of Thy Suffering" },
-    speakers: [
-      { name: "Sister Brown", topic: "Faith in Jesus Christ", type: "speaker" },
-      { name: "Youth Choir", topic: "", type: "musical-number" },
-      { name: "Brother Green", topic: "The power of prayer", type: "speaker" },
-    ],
-    closingHymn: { number: 31, title: "O God, Our Help in Ages Past" },
-    closingPrayer: "Brother Davis",
-    announcements: ["Ward temple night: May 10"],
-  },
-  {
-    id: 2,
-    date: "2026-05-10",
-    meetingType: "testimony",
-    presiding: "Bishop Smith",
-    conducting: "Bishop Smith",
-    openingHymn: { number: 85, title: "How Firm a Foundation" },
-    openingPrayer: "Brother Taylor",
-    wardBusiness: [],
-    stakeBusiness: false,
-    sacramentHymn: {
-      number: 172,
-      title: "Tis Sweet to Sing the Matchless Love",
-    },
-    speakers: [{ name: "Congregation", topic: "Testimonies", type: "speaker" }],
-    closingHymn: { number: 152, title: "Rise Up, O Men of God" },
-    closingPrayer: "Sister Adams",
-    announcements: ["Fast Sunday - no ward business"],
-  },
-  {
-    id: 3,
-    date: "2026-05-17",
-    meetingType: "regular",
-    presiding: "Brother Johnson (Stake Presidency)",
-    conducting: "Bishop Smith",
-    openingHymn: { number: 5, title: "High on the Mountain Top" },
-    openingPrayer: "Brother White",
-    wardBusiness: [
-      { description: "Release of Elders Quorum president" },
-      { description: "Calling of new Elders Quorum president" },
-    ],
-    stakeBusiness: true,
-    sacramentHymn: { number: 190, title: "In Memory of the Crucified" },
-    speakers: [
-      {
-        name: "Sister Garcia",
-        topic: "Faith in times of trial",
-        type: "speaker",
-      },
-      {
-        name: "Primary Children",
-        topic: "I Am a Child of God",
-        type: "musical-number",
-      },
-      {
-        name: "Brother Martinez",
-        topic: "Following the Prophet",
-        type: "speaker",
-      },
-    ],
-    closingHymn: { number: 19, title: "We Thank Thee, O God, for a Prophet" },
-    closingPrayer: "Sister Lee",
-    announcements: ["Stake Conference next week"],
-  },
-  {
-    id: 4,
-    date: "2026-05-24",
-    meetingType: "stake",
-    presiding: "Stake President",
-    conducting: "Stake President",
-    openingHymn: { number: 68, title: "Israel, Israel, God is Calling" },
-    openingPrayer: "Brother Clark",
-    wardBusiness: [],
-    stakeBusiness: true,
-    sacramentHymn: { number: 1, title: "The Morning Breaks" },
-    speakers: [
-      {
-        name: "Stake President",
-        topic: "Stake Conference Address",
-        type: "speaker",
-      },
-      {
-        name: "Sister Thompson",
-        topic: "Stake Relief Society Address",
-        type: "speaker",
-      },
-    ],
-    closingHymn: { number: 243, title: "Let Us All Press On" },
-    closingPrayer: "Sister Hall",
-    announcements: ["This is a Stake Conference broadcast"],
-  },
-  {
-    id: 5,
-    date: "2026-05-31",
-    meetingType: "general",
-    presiding: "Bishop Smith",
-    conducting: "Bishop Smith",
-    openingHymn: { number: 60, title: "Battle Hymn of the Republic" },
-    openingPrayer: "Brother Young",
-    wardBusiness: [],
-    stakeBusiness: false,
-    sacramentHymn: { number: 174, title: "While of These Emblems We Partake" },
-    speakers: [
-      {
-        name: "General Authority",
-        topic: "General Conference Broadcast",
-        type: "speaker",
-      },
-    ],
-    closingHymn: { number: 27, title: "Joseph Smith’s First Prayer" },
-    closingPrayer: "Sister King",
-    announcements: ["View the General Conference broadcast at home"],
-  },
-];
+const sql = neon(process.env.DATABASE_URL!);
 
-export function getMeetings(date?: string | null): SacramentMeeting[] {
-  if (date) return meetings.filter((m) => m.date === date);
-  return meetings;
+// Helper to safely format the date
+function formatDateString(date: unknown): string {
+  if (typeof date === "string") return date.split("T")[0];
+  if (date instanceof Date) return date.toISOString().split("T")[0];
+  return "";
 }
 
-export function getMeetingById(id: number): SacramentMeeting | null {
-  return meetings.find((m) => m.id === id) ?? null;
+// Helper to map the database row (snake_case) to the TypeScript interface (camelCase)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapDbRowToMeeting(row: any): SacramentMeeting {
+  // Neon sometimes returns JSONB as a string, so we parse it if needed
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  console.log("RAW ROW FROM NEON:", row);
+  const parseJson = (data: any, fallback: any) => {
+    if (!data) return fallback;
+    if (typeof data === "string") {
+      try {
+        return JSON.parse(data);
+      } catch {
+        return fallback;
+      }
+    }
+    return data;
+  };
+
+  return {
+    id: row.id,
+    date: formatDateString(row.date),
+    meetingType: row.meeting_type,
+    presiding: row.presiding,
+    conducting: row.conducting,
+    announcements: row.announcements || [],
+    // Safely parse JSONB fields with fallbacks
+    openingHymn: parseJson(row.opening_hymn, { number: 0, title: "TBD" }),
+    openingPrayer: row.opening_prayer,
+    wardBusiness: parseJson(row.ward_business, []),
+    stakeBusiness: row.stake_business,
+    sacramentHymn: parseJson(row.sacrament_hymn, { number: 0, title: "TBD" }),
+    speakers: parseJson(row.speakers, []),
+    closingHymn: parseJson(row.closing_hymn, { number: 0, title: "TBD" }),
+    closingPrayer: row.closing_prayer,
+  };
+}
+
+export async function getMeetings(
+  query?: string,
+  page: number = 1,
+): Promise<SacramentMeeting[]> {
+  const limit = 5;
+  const offset = (page - 1) * limit;
+
+  let rows;
+  if (query) {
+    const searchTerm = `%${query}%`;
+    rows = await sql`
+      SELECT * FROM meetings 
+      WHERE presiding ILIKE ${searchTerm} 
+         OR conducting ILIKE ${searchTerm} 
+         OR meeting_type ILIKE ${searchTerm}
+         OR speakers::text ILIKE ${searchTerm}
+      ORDER BY date DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `;
+  } else {
+    rows = await sql`
+      SELECT * FROM meetings ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}
+    `;
+  }
+
+  // Map the raw rows to the proper interface
+  return rows.map(mapDbRowToMeeting);
+}
+
+export async function getMeetingsTotalPages(query?: string): Promise<number> {
+  const limit = 5;
+  let count;
+
+  if (query) {
+    const searchTerm = `%${query}%`;
+    const res = await sql`
+      SELECT COUNT(*) FROM meetings 
+      WHERE presiding ILIKE ${searchTerm} 
+         OR conducting ILIKE ${searchTerm} 
+         OR meeting_type ILIKE ${searchTerm}
+         OR speakers::text ILIKE ${searchTerm}
+    `;
+    count = Number(res[0].count);
+  } else {
+    const res = await sql`SELECT COUNT(*) FROM meetings`;
+    count = Number(res[0].count);
+  }
+
+  return Math.ceil(count / limit);
+}
+
+export async function getMeetingById(
+  id: number,
+): Promise<SacramentMeeting | null> {
+  const rows = await sql`SELECT * FROM meetings WHERE id = ${id}`;
+  if (!rows[0]) return null;
+
+  // Map the single row to the proper interface
+  return mapDbRowToMeeting(rows[0]);
+}
+
+export async function getCurrentMeeting(): Promise<SacramentMeeting | null> {
+  const today = new Date();
+  const sunday = new Date(today);
+  sunday.setDate(today.getDate() - today.getDay());
+  const dateStr = sunday.toISOString().split("T")[0];
+
+  const rows = await sql`SELECT * FROM meetings WHERE date = ${dateStr}`;
+  if (!rows[0]) return null;
+
+  // Map the single row to the proper interface
+  return mapDbRowToMeeting(rows[0]);
 }

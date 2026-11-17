@@ -14,7 +14,7 @@ export default async function MeetingDetailPage({
   if (Number.isNaN(id)) return notFound();
 
   // Fetch directly from the database import, not via localhost fetch
-  const meeting = getMeetingById(id);
+  const meeting = await getMeetingById(id);
 
   if (!meeting) return notFound();
 

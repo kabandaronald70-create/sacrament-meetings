@@ -9,13 +9,13 @@ export async function GET(
   const id = Number(resolvedParams.id);
 
   if (Number.isNaN(id)) {
-    return NextResponse.json({ error: "Invalid id format" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   }
 
-  const meeting = getMeetingById(id);
+  const meeting = await getMeetingById(id);
 
   if (!meeting) {
-    return NextResponse.json({ error: "Meeting not found" }, { status: 404 });
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   return NextResponse.json(meeting);
