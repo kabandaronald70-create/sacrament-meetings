@@ -14,9 +14,7 @@ function formatDateString(date: unknown): string {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapDbRowToMeeting(row: any): SacramentMeeting {
   // Neon sometimes returns JSONB as a string, so we parse it if needed
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  console.log("RAW ROW FROM NEON:", row);
-  const parseJson = (data: any, fallback: any) => {
+  const parseJson = (data: unknown, fallback: unknown) => {
     if (!data) return fallback;
     if (typeof data === "string") {
       try {
